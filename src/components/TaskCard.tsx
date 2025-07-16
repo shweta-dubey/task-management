@@ -208,7 +208,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
           </Box>
         </CardContent>
 
-        <CardActions sx={{ justifyContent: "space-between", px: 2, pb: 2 }}>
+        <CardActions sx={{ justifyContent: "space-between" }}>
           {!task.deleted && !task.completed && (
             <Box display="flex" alignItems="center">
               <Checkbox

@@ -21,7 +21,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
 import { AppDispatch, RootState } from "../store";
 import { createTask, updateTask } from "../store/taskSlice";
-import { Task, CreateTaskData, UpdateTaskData } from "../types/task";
+import { Task, CreateTaskData } from "../types/task";
 
 const schema = z.object({
   name: z
@@ -133,7 +133,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ open, onClose, task, mode }) => {
           onClose();
           return;
         }
-        const updateData: UpdateTaskData = {
+        const updateData = {
           name: data.name,
           description: data.description,
           priority: data.priority,

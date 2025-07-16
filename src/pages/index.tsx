@@ -1,17 +1,22 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { GetServerSideProps } from "next";
 import { useDispatch, useSelector } from "react-redux";
-import { Box, Typography, Button, Fab, Alert, Snackbar } from "@mui/material";
+import { Box, Typography, Button, Alert, Snackbar } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import { AppDispatch, RootState, loadState } from "../store";
 import {
   fetchTasks,
+  searchTasks,
   updateTask,
   softDeleteTask,
   hardDeleteTask,
   undeleteTask,
   clearError,
   hydrateState,
+  setSearchTerm,
+  setFilterPriority,
+  setFilterStatus,
+  setSortBy,
 } from "../store/taskSlice";
 import { Task } from "../types/task";
 import Layout from "../components/Layout";
@@ -30,6 +35,7 @@ export default function HomePage({ initialTasks }: HomePageProps) {
   const dispatch = useDispatch<AppDispatch>();
   const {
     tasks,
+    filteredTasks,
     loading,
     error,
     searchTerm,
@@ -46,7 +52,7 @@ export default function HomePage({ initialTasks }: HomePageProps) {
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [taskToHardDelete, setTaskToHardDelete] = useState<string | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [hardDeletingTaskId, setHardDeletingTaskId] = useState<string | null>(
@@ -54,80 +60,65 @@ export default function HomePage({ initialTasks }: HomePageProps) {
   );
   const [undeletingTaskId, setUndeletingTaskId] = useState<string | null>(null);
 
+  // Calculate active operations early and consistently
+  const hasActiveTaskOperations = useMemo(() => {
+    return (
+      updatingTaskId !== null ||
+      deletingTaskId !== null ||
+      hardDeletingTaskId !== null ||
+      undeletingTaskId !== null
+    );
+  }, [updatingTaskId, deletingTaskId, hardDeletingTaskId, undeletingTaskId]);
+
   useEffect(() => {
+    setIsMounted(true);
+
     const persistedState = loadState();
-    if (persistedState) {
+    if (persistedState && persistedState.tasks.tasks.length > 0) {
       dispatch(hydrateState(persistedState.tasks.tasks));
+      dispatch(setSearchTerm(persistedState.tasks.searchTerm));
+      dispatch(setFilterPriority(persistedState.tasks.filterPriority));
+      dispatch(setFilterStatus(persistedState.tasks.filterStatus));
+      dispatch(setSortBy(persistedState.tasks.sortBy));
     } else if (initialTasks.length > 0) {
       dispatch(hydrateState(initialTasks));
     }
-    setIsHydrated(true);
   }, [dispatch, initialTasks]);
 
   useEffect(() => {
-    if (isHydrated && tasks.length === 0) {
+    if (isMounted && tasks.length === 0) {
       dispatch(fetchTasks());
     }
-  }, [dispatch, tasks.length, isHydrated]);
+  }, [dispatch, tasks.length, isMounted]);
+
+  useEffect(() => {
+    if (isMounted && tasks.length > 0 && !hasActiveTaskOperations) {
+      dispatch(
+        searchTasks({
+          searchTerm,
+          filterPriority,
+          filterStatus,
+          sortBy,
+          silent: false,
+        })
+      );
+    }
+  }, [
+    dispatch,
+    searchTerm,
+    filterPriority,
+    filterStatus,
+    sortBy,
+    isMounted,
+    tasks.length,
+    hasActiveTaskOperations,
+  ]);
 
   useEffect(() => {
     if (error) {
       setSnackbarOpen(true);
     }
   }, [error]);
-
-  const filteredAndSortedTasks = useMemo(() => {
-    const filtered = tasks.filter((task) => {
-      const matchesSearch =
-        task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesPriority =
-        filterPriority === "all" || task.priority === filterPriority;
-
-      let matchesStatus = true;
-      switch (filterStatus) {
-        case "completed":
-          matchesStatus = task.completed && !task.deleted;
-          break;
-        case "pending":
-          matchesStatus = !task.completed && !task.deleted;
-          break;
-        case "deleted":
-          matchesStatus = task.deleted;
-          break;
-        case "all":
-        default:
-          matchesStatus = true;
-          break;
-      }
-
-      return matchesSearch && matchesPriority && matchesStatus;
-    });
-
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "priority-high-low":
-          const priorityOrder = { high: 3, medium: 2, low: 1 };
-          return priorityOrder[b.priority] - priorityOrder[a.priority];
-        case "priority-low-high":
-          const priorityOrderLow = { high: 3, medium: 2, low: 1 };
-          return priorityOrderLow[a.priority] - priorityOrderLow[b.priority];
-        case "newest-first":
-          return (
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
-        case "oldest-first":
-          return (
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          );
-        default:
-          const defaultOrder = { high: 3, medium: 2, low: 1 };
-          return defaultOrder[b.priority] - defaultOrder[a.priority];
-      }
-    });
-
-    return filtered;
-  }, [tasks, searchTerm, filterPriority, filterStatus, sortBy]);
 
   const completedTasks = useMemo(() => {
     return tasks.filter((task) => task.completed && !task.deleted).length;
@@ -158,6 +149,18 @@ export default function HomePage({ initialTasks }: HomePageProps) {
     setDeleteConfirmOpen(true);
   };
 
+  const refreshSearch = () => {
+    dispatch(
+      searchTasks({
+        searchTerm,
+        filterPriority,
+        filterStatus,
+        sortBy,
+        silent: true,
+      })
+    );
+  };
+
   const confirmDeleteTask = async () => {
     if (taskToDelete) {
       setDeletingTaskId(taskToDelete);
@@ -165,6 +168,7 @@ export default function HomePage({ initialTasks }: HomePageProps) {
       setDeleteConfirmOpen(false);
       setTaskToDelete(null);
       setDeletingTaskId(null);
+      refreshSearch();
     }
   };
 
@@ -180,6 +184,7 @@ export default function HomePage({ initialTasks }: HomePageProps) {
       setHardDeleteConfirmOpen(false);
       setTaskToHardDelete(null);
       setHardDeletingTaskId(null);
+      refreshSearch();
     }
   };
 
@@ -187,12 +192,14 @@ export default function HomePage({ initialTasks }: HomePageProps) {
     setUndeletingTaskId(taskId);
     await dispatch(undeleteTask(taskId));
     setUndeletingTaskId(null);
+    refreshSearch();
   };
 
   const handleToggleComplete = async (taskId: string, completed: boolean) => {
     setUpdatingTaskId(taskId);
     await dispatch(updateTask({ id: taskId, updates: { completed } }));
     setUpdatingTaskId(null);
+    refreshSearch();
   };
 
   const handleCloseSnackbar = () => {
@@ -202,6 +209,12 @@ export default function HomePage({ initialTasks }: HomePageProps) {
 
   const isFiltered =
     searchTerm.length > 0 || filterPriority !== "all" || filterStatus !== "all";
+
+  const displayTasks = !isMounted
+    ? initialTasks
+    : isFiltered && filteredTasks.length >= 0
+    ? filteredTasks
+    : tasks;
 
   return (
     <Layout title="Task Management - Home">
@@ -233,17 +246,27 @@ export default function HomePage({ initialTasks }: HomePageProps) {
           deletedTasks={deletedTasks}
         />
 
-        {(!isHydrated || (loading && tasks.length === 0)) && (
+        {(!isMounted || (loading && tasks.length === 0)) && (
           <LoadingSpinner message="Loading tasks..." />
         )}
 
-        {isHydrated && !loading && filteredAndSortedTasks.length === 0 && (
+        {/* {searchLoading &&
+          !loading &&
+          !hasActiveTaskOperations &&
+          updatingTaskId === null &&
+          deletingTaskId === null &&
+          hardDeletingTaskId === null &&
+          undeletingTaskId === null && (
+            <LoadingSpinner message="Searching tasks..." />
+          )} */}
+
+        {isMounted && !loading && displayTasks.length === 0 && (
           <EmptyState onCreateTask={handleCreateTask} isFiltered={isFiltered} />
         )}
 
-        {isHydrated &&
+        {isMounted &&
           (!loading || tasks.length > 0) &&
-          filteredAndSortedTasks.length > 0 && (
+          displayTasks.length > 0 && (
             <Box
               sx={{
                 display: "grid",
@@ -255,7 +278,7 @@ export default function HomePage({ initialTasks }: HomePageProps) {
                 gap: 3,
               }}
             >
-              {filteredAndSortedTasks.map((task) => (
+              {displayTasks.map((task) => (
                 <TaskCard
                   key={task.id}
                   task={task}
@@ -274,19 +297,6 @@ export default function HomePage({ initialTasks }: HomePageProps) {
               ))}
             </Box>
           )}
-
-        <Fab
-          color="primary"
-          aria-label="add task"
-          sx={{
-            position: "fixed",
-            bottom: 16,
-            right: 16,
-          }}
-          onClick={handleCreateTask}
-        >
-          <AddIcon />
-        </Fab>
 
         <TaskForm
           open={isFormOpen}

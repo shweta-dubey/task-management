@@ -18,14 +18,16 @@ export interface CreateTaskData {
   completed?: boolean;
 }
 
-export interface UpdateTaskData extends Partial<CreateTaskData> {
-  completed?: boolean;
-  deleted?: boolean;
+export interface UpdateTaskData {
+  id: string;
+  updates: Partial<Omit<Task, "id" | "createdAt">>;
 }
 
 export interface TasksState {
   tasks: Task[];
+  filteredTasks: Task[];
   loading: boolean;
+  searchLoading: boolean;
   error: string | null;
   searchTerm: string;
   filterPriority: "all" | "low" | "medium" | "high";
@@ -35,4 +37,5 @@ export interface TasksState {
     | "priority-low-high"
     | "newest-first"
     | "oldest-first";
+  lastUpdated: number;
 }

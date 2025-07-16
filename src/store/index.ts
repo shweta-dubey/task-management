@@ -13,12 +13,15 @@ export const loadState = (): { tasks: TasksState } | undefined => {
       return {
         tasks: {
           tasks: parsedState.tasks.tasks || [],
+          filteredTasks: parsedState.tasks.filteredTasks || [],
           searchTerm: parsedState.tasks.searchTerm || "",
           filterPriority: parsedState.tasks.filterPriority || "all",
           filterStatus: parsedState.tasks.filterStatus || "all",
           sortBy: parsedState.tasks.sortBy || "priority-high-low",
           loading: false,
+          searchLoading: false,
           error: null,
+          lastUpdated: parsedState.tasks.lastUpdated || 0,
         },
       };
     }
@@ -29,10 +32,12 @@ export const loadState = (): { tasks: TasksState } | undefined => {
   }
 };
 
-export const store = configureStore({
+const store = configureStore({
   reducer: {
     tasks: taskReducer,
   },
+  // Remove preloadedState to prevent hydration mismatches
+  // We'll handle initial state in the component instead
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
@@ -41,6 +46,7 @@ export const store = configureStore({
     }),
 });
 
+export { store };
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 
@@ -50,10 +56,12 @@ export const saveState = (state: RootState) => {
     const serializedState = JSON.stringify({
       tasks: {
         tasks: state.tasks.tasks,
+        filteredTasks: state.tasks.filteredTasks,
         searchTerm: state.tasks.searchTerm,
         filterPriority: state.tasks.filterPriority,
         filterStatus: state.tasks.filterStatus,
         sortBy: state.tasks.sortBy,
+        lastUpdated: state.tasks.lastUpdated,
       },
     });
     localStorage.setItem("reduxState", serializedState);
