@@ -39,7 +39,8 @@ export default async function handler(
         description: taskData.description,
         priority: taskData.priority,
         dueDate: taskData.dueDate,
-        completed: false,
+        completed: taskData.completed || false,
+        deleted: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

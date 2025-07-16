@@ -14,6 +14,8 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Schedule as ScheduleIcon,
+  RestoreFromTrash as RestoreIcon,
+  DeleteForever as DeleteForeverIcon,
 } from "@mui/icons-material";
 import { Task } from "../types/task";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -23,6 +25,8 @@ interface TaskCardProps {
   task: Task;
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
+  onHardDelete?: (taskId: string) => void;
+  onUndelete?: (taskId: string) => void;
   onToggleComplete: (taskId: string, completed: boolean) => void;
   loading?: boolean;
 }
@@ -31,6 +35,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
   task,
   onEdit,
   onDelete,
+  onHardDelete,
+  onUndelete,
   onToggleComplete,
   loading = false,
 }) => {
@@ -80,6 +86,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
     return date < now;
   };
 
+  const canEdit = !task.completed && !task.deleted;
+
   return (
     <Box sx={{ position: "relative" }}>
       <Card
@@ -87,7 +95,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          opacity: task.completed ? 0.7 : 1,
+          opacity: task.completed || task.deleted ? 0.7 : 1,
           transition: "all 0.3s ease",
           "&:hover": {
             transform: "translateY(-2px)",
@@ -95,6 +103,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
           },
           pointerEvents: loading ? "none" : undefined,
           filter: loading ? "grayscale(0.5) opacity(0.7)" : undefined,
+          borderLeft: task.deleted ? "4px solid" : "none",
+          borderLeftColor: task.deleted ? "error.main" : "transparent",
         }}
         className="task-card"
       >
@@ -109,8 +119,12 @@ const TaskCard: React.FC<TaskCardProps> = ({
               variant="h6"
               component="h3"
               sx={{
-                textDecoration: task.completed ? "line-through" : "none",
-                color: task.completed ? "text.secondary" : "text.primary",
+                textDecoration:
+                  task.completed || task.deleted ? "line-through" : "none",
+                color:
+                  task.completed || task.deleted
+                    ? "text.secondary"
+                    : "text.primary",
                 wordBreak: "break-word",
                 flexGrow: 1,
                 mr: 1,
@@ -139,7 +153,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
             color="text.secondary"
             sx={{
               mb: 2,
-              textDecoration: task.completed ? "line-through" : "none",
+              textDecoration:
+                task.completed || task.deleted ? "line-through" : "none",
               wordBreak: "break-word",
             }}
           >
@@ -147,7 +162,18 @@ const TaskCard: React.FC<TaskCardProps> = ({
           </Typography>
 
           <Box display="flex" alignItems="center" gap={1}>
-            {task.completed ? (
+            {task.deleted ? (
+              <>
+                <DeleteForeverIcon fontSize="small" color="error" />
+                <Typography
+                  variant="body2"
+                  color="error.main"
+                  sx={{ fontWeight: 600 }}
+                >
+                  Deleted
+                </Typography>
+              </>
+            ) : task.completed ? (
               <>
                 <CheckCircleIcon fontSize="small" color="success" />
                 <Typography
@@ -183,50 +209,136 @@ const TaskCard: React.FC<TaskCardProps> = ({
         </CardContent>
 
         <CardActions sx={{ justifyContent: "space-between", px: 2, pb: 2 }}>
-          <Box display="flex" alignItems="center">
-            <Checkbox
-              checked={task.completed}
-              onChange={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onToggleComplete(task.id, e.target.checked);
-              }}
-              color="primary"
-              disabled={loading}
-            />
-            <Typography variant="body2" color="text.secondary">
-              {task.completed ? "Completed" : "Mark as done"}
-            </Typography>
-          </Box>
+          {!task.deleted && !task.completed && (
+            <Box display="flex" alignItems="center">
+              <Checkbox
+                checked={task.completed}
+                onChange={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onToggleComplete(task.id, e.target.checked);
+                }}
+                color="primary"
+                disabled={loading}
+              />
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ cursor: "pointer" }}
+                onClick={() => {
+                  if (!loading) {
+                    onToggleComplete(task.id, !task.completed);
+                  }
+                }}
+              >
+                Mark as done
+              </Typography>
+            </Box>
+          )}
 
-          <Box>
-            <Tooltip title="Edit task">
-              <span>
+          {task.completed && !task.deleted && (
+            <Box display="flex" alignItems="center" gap={1}>
+              <Tooltip title="Mark as incomplete">
                 <IconButton
-                  onClick={() => onEdit(task)}
-                  color="primary"
+                  onClick={() => onToggleComplete(task.id, false)}
+                  color="warning"
                   size="small"
-                  aria-label="Edit task"
+                  aria-label="Mark as incomplete"
                   disabled={loading}
                 >
-                  <EditIcon />
+                  <RestoreIcon />
                 </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title="Delete task">
-              <span>
-                <IconButton
-                  onClick={() => onDelete(task.id)}
-                  color="error"
-                  size="small"
-                  aria-label="Delete task"
-                  disabled={loading}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </span>
-            </Tooltip>
-          </Box>
+              </Tooltip>
+              <Typography
+                variant="body2"
+                color="success.main"
+                sx={{ cursor: "pointer", fontWeight: 600 }}
+                onClick={() => {
+                  if (!loading) {
+                    onToggleComplete(task.id, false);
+                  }
+                }}
+              >
+                Completed
+              </Typography>
+            </Box>
+          )}
+
+          {task.deleted && (
+            <Box display="flex" alignItems="center">
+              <Typography
+                variant="body2"
+                color="error.main"
+                sx={{ fontWeight: 600 }}
+              >
+                Deleted
+              </Typography>
+            </Box>
+          )}
+
+          {canEdit && (
+            <Box>
+              <Tooltip title="Edit task">
+                <span>
+                  <IconButton
+                    onClick={() => onEdit(task)}
+                    color="primary"
+                    size="small"
+                    aria-label="Edit task"
+                    disabled={loading}
+                  >
+                    <EditIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title="Delete task">
+                <span>
+                  <IconButton
+                    onClick={() => onDelete(task.id)}
+                    color="error"
+                    size="small"
+                    aria-label="Delete task"
+                    disabled={loading}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Box>
+          )}
+
+          {task.deleted && onUndelete && (
+            <Box display="flex" gap={1}>
+              <Tooltip title="Restore task">
+                <span>
+                  <IconButton
+                    onClick={() => onUndelete(task.id)}
+                    color="success"
+                    size="small"
+                    aria-label="Restore task"
+                    disabled={loading}
+                  >
+                    <RestoreIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              {onHardDelete && (
+                <Tooltip title="Delete permanently">
+                  <span>
+                    <IconButton
+                      onClick={() => onHardDelete(task.id)}
+                      color="error"
+                      size="small"
+                      aria-label="Delete permanently"
+                      disabled={loading}
+                    >
+                      <DeleteForeverIcon />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              )}
+            </Box>
+          )}
         </CardActions>
         {loading && (
           <Box

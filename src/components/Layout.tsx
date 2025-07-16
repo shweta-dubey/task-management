@@ -35,7 +35,7 @@ const Layout: React.FC<LayoutProps> = ({
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <AppBar position="static">
+      <AppBar position="sticky">
         <Toolbar>
           <AssignmentIcon sx={{ mr: 2 }} />
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>

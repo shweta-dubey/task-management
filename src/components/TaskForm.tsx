@@ -14,6 +14,8 @@ import {
   Box,
   Typography,
   CircularProgress,
+  FormControlLabel,
+  Checkbox,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
@@ -49,6 +51,7 @@ const schema = z.object({
         message: "Due date must be within 2 years from today",
       }
     ),
+  completed: z.boolean(),
 });
 
 interface TaskFormProps {
@@ -63,6 +66,7 @@ interface FormData {
   description: string;
   priority: "low" | "medium" | "high";
   dueDate: Dayjs;
+  completed: boolean;
 }
 
 const TaskForm: React.FC<TaskFormProps> = ({ open, onClose, task, mode }) => {
@@ -81,6 +85,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ open, onClose, task, mode }) => {
       description: "",
       priority: "medium",
       dueDate: dayjs().add(1, "day"),
+      completed: false,
     },
   });
 
@@ -92,6 +97,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ open, onClose, task, mode }) => {
           description: task.description,
           priority: task.priority,
           dueDate: dayjs(task.dueDate),
+          completed: task.completed,
         });
       } else {
         reset({
@@ -99,6 +105,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ open, onClose, task, mode }) => {
           description: "",
           priority: "medium",
           dueDate: dayjs().add(1, "day"),
+          completed: false,
         });
       }
     }
@@ -112,6 +119,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ open, onClose, task, mode }) => {
           description: data.description,
           priority: data.priority,
           dueDate: data.dueDate.toISOString(),
+          completed: data.completed,
         };
         await dispatch(createTask(createData)).unwrap();
       } else if (mode === "edit" && task) {
@@ -120,7 +128,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ open, onClose, task, mode }) => {
           data.name !== task.name ||
           data.description !== task.description ||
           data.priority !== task.priority ||
-          !data.dueDate.isSame(dayjs(task.dueDate), "day");
+          !data.dueDate.isSame(dayjs(task.dueDate), "day") ||
+          data.completed !== task.completed;
         if (!hasChanged) {
           onClose();
           return;
@@ -130,6 +139,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ open, onClose, task, mode }) => {
           description: data.description,
           priority: data.priority,
           dueDate: data.dueDate.toISOString(),
+          completed: data.completed,
         };
         await dispatch(
           updateTask({ id: task.id, updates: updateData })
@@ -174,7 +184,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ open, onClose, task, mode }) => {
               render={({ field }) => (
                 <TextField
                   {...field}
-                  label="Task Name"
+                  label="Name"
                   fullWidth
                   error={!!errors.name}
                   helperText={errors.name?.message}
@@ -237,6 +247,24 @@ const TaskForm: React.FC<TaskFormProps> = ({ open, onClose, task, mode }) => {
                       helperText: errors.dueDate?.message,
                     },
                   }}
+                />
+              )}
+            />
+
+            <Controller
+              name="completed"
+              control={control}
+              render={({ field }) => (
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      {...field}
+                      checked={field.value}
+                      disabled={loading}
+                      color="primary"
+                    />
+                  }
+                  label="Mark as complete"
                 />
               )}
             />

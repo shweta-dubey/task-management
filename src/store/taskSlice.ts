@@ -8,6 +8,12 @@ export interface TasksState {
   error: string | null;
   searchTerm: string;
   filterPriority: "all" | "low" | "medium" | "high";
+  filterStatus: "all" | "completed" | "pending" | "deleted";
+  sortBy:
+    | "priority-high-low"
+    | "priority-low-high"
+    | "newest-first"
+    | "oldest-first";
 }
 
 const initialState: TasksState = {
@@ -16,6 +22,8 @@ const initialState: TasksState = {
   error: null,
   searchTerm: "",
   filterPriority: "all",
+  filterStatus: "all",
+  sortBy: "priority-high-low",
 };
 
 export const fetchTasks = createAsyncThunk(
@@ -87,6 +95,75 @@ export const updateTask = createAsyncThunk(
   }
 );
 
+export const softDeleteTask = createAsyncThunk(
+  "tasks/softDeleteTask",
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`/api/tasks/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ deleted: true }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to delete task");
+      }
+      const task = await response.json();
+      return task;
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to delete task"
+      );
+    }
+  }
+);
+
+export const undeleteTask = createAsyncThunk(
+  "tasks/undeleteTask",
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`/api/tasks/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ deleted: false }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to restore task");
+      }
+      const task = await response.json();
+      return task;
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to restore task"
+      );
+    }
+  }
+);
+
+export const hardDeleteTask = createAsyncThunk(
+  "tasks/hardDeleteTask",
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`/api/tasks/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to permanently delete task");
+      }
+      return id;
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error
+          ? error.message
+          : "Failed to permanently delete task"
+      );
+    }
+  }
+);
+
 export const deleteTask = createAsyncThunk(
   "tasks/deleteTask",
   async (id: string, { rejectWithValue }) => {
@@ -118,6 +195,23 @@ const taskSlice = createSlice({
       action: PayloadAction<"all" | "low" | "medium" | "high">
     ) => {
       state.filterPriority = action.payload;
+    },
+    setFilterStatus: (
+      state,
+      action: PayloadAction<"all" | "completed" | "pending" | "deleted">
+    ) => {
+      state.filterStatus = action.payload;
+    },
+    setSortBy: (
+      state,
+      action: PayloadAction<
+        | "priority-high-low"
+        | "priority-low-high"
+        | "newest-first"
+        | "oldest-first"
+      >
+    ) => {
+      state.sortBy = action.payload;
     },
     clearError: (state) => {
       state.error = null;
@@ -171,6 +265,55 @@ const taskSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
+      .addCase(softDeleteTask.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(softDeleteTask.fulfilled, (state, action) => {
+        state.loading = false;
+        const index = state.tasks.findIndex(
+          (task) => task.id === action.payload.id
+        );
+        if (index !== -1) {
+          state.tasks[index] = action.payload;
+        }
+        saveState({ tasks: state });
+      })
+      .addCase(softDeleteTask.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(undeleteTask.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(undeleteTask.fulfilled, (state, action) => {
+        state.loading = false;
+        const index = state.tasks.findIndex(
+          (task) => task.id === action.payload.id
+        );
+        if (index !== -1) {
+          state.tasks[index] = action.payload;
+        }
+        saveState({ tasks: state });
+      })
+      .addCase(undeleteTask.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(hardDeleteTask.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(hardDeleteTask.fulfilled, (state, action) => {
+        state.loading = false;
+        state.tasks = state.tasks.filter((task) => task.id !== action.payload);
+        saveState({ tasks: state });
+      })
+      .addCase(hardDeleteTask.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
       .addCase(deleteTask.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -187,6 +330,12 @@ const taskSlice = createSlice({
   },
 });
 
-export const { setSearchTerm, setFilterPriority, clearError, hydrateState } =
-  taskSlice.actions;
+export const {
+  setSearchTerm,
+  setFilterPriority,
+  setFilterStatus,
+  setSortBy,
+  clearError,
+  hydrateState,
+} = taskSlice.actions;
 export default taskSlice.reducer;

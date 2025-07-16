@@ -7,7 +7,9 @@ import { AppDispatch, RootState, loadState } from "../store";
 import {
   fetchTasks,
   updateTask,
-  deleteTask,
+  softDeleteTask,
+  hardDeleteTask,
+  undeleteTask,
   clearError,
   hydrateState,
 } from "../store/taskSlice";
@@ -26,19 +28,31 @@ interface HomePageProps {
 
 export default function HomePage({}: HomePageProps) {
   const dispatch = useDispatch<AppDispatch>();
-  const { tasks, loading, error, searchTerm, filterPriority } = useSelector(
-    (state: RootState) => state.tasks
-  );
+  const {
+    tasks,
+    loading,
+    error,
+    searchTerm,
+    filterPriority,
+    filterStatus,
+    sortBy,
+  } = useSelector((state: RootState) => state.tasks);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>();
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [hardDeleteConfirmOpen, setHardDeleteConfirmOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  const [taskToHardDelete, setTaskToHardDelete] = useState<string | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [hardDeletingTaskId, setHardDeletingTaskId] = useState<string | null>(
+    null
+  );
+  const [undeletingTaskId, setUndeletingTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     const persistedState = loadState();
@@ -60,19 +74,71 @@ export default function HomePage({}: HomePageProps) {
     }
   }, [error]);
 
-  const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
+  const filteredAndSortedTasks = useMemo(() => {
+    const filtered = tasks.filter((task) => {
       const matchesSearch =
         task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.description.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesPriority =
         filterPriority === "all" || task.priority === filterPriority;
-      return matchesSearch && matchesPriority;
+
+      let matchesStatus = true;
+      switch (filterStatus) {
+        case "completed":
+          matchesStatus = task.completed && !task.deleted;
+          break;
+        case "pending":
+          matchesStatus = !task.completed && !task.deleted;
+          break;
+        case "deleted":
+          matchesStatus = task.deleted;
+          break;
+        case "all":
+        default:
+          matchesStatus = true;
+          break;
+      }
+
+      return matchesSearch && matchesPriority && matchesStatus;
     });
-  }, [tasks, searchTerm, filterPriority]);
+
+    // Sort tasks
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "priority-high-low":
+          const priorityOrder = { high: 3, medium: 2, low: 1 };
+          return priorityOrder[b.priority] - priorityOrder[a.priority];
+        case "priority-low-high":
+          const priorityOrderLow = { high: 3, medium: 2, low: 1 };
+          return priorityOrderLow[a.priority] - priorityOrderLow[b.priority];
+        case "newest-first":
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        case "oldest-first":
+          return (
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+        default:
+          // Default: priority high to low
+          const defaultOrder = { high: 3, medium: 2, low: 1 };
+          return defaultOrder[b.priority] - defaultOrder[a.priority];
+      }
+    });
+
+    return filtered;
+  }, [tasks, searchTerm, filterPriority, filterStatus, sortBy]);
 
   const completedTasks = useMemo(() => {
-    return tasks.filter((task) => task.completed).length;
+    return tasks.filter((task) => task.completed && !task.deleted).length;
+  }, [tasks]);
+
+  const deletedTasks = useMemo(() => {
+    return tasks.filter((task) => task.deleted).length;
+  }, [tasks]);
+
+  const activeTasks = useMemo(() => {
+    return tasks.filter((task) => !task.deleted).length;
   }, [tasks]);
 
   const handleCreateTask = () => {
@@ -95,11 +161,32 @@ export default function HomePage({}: HomePageProps) {
   const confirmDeleteTask = async () => {
     if (taskToDelete) {
       setDeletingTaskId(taskToDelete);
-      await dispatch(deleteTask(taskToDelete));
+      await dispatch(softDeleteTask(taskToDelete));
       setDeleteConfirmOpen(false);
       setTaskToDelete(null);
       setDeletingTaskId(null);
     }
+  };
+
+  const handleHardDeleteTask = (taskId: string) => {
+    setTaskToHardDelete(taskId);
+    setHardDeleteConfirmOpen(true);
+  };
+
+  const confirmHardDeleteTask = async () => {
+    if (taskToHardDelete) {
+      setHardDeletingTaskId(taskToHardDelete);
+      await dispatch(hardDeleteTask(taskToHardDelete));
+      setHardDeleteConfirmOpen(false);
+      setTaskToHardDelete(null);
+      setHardDeletingTaskId(null);
+    }
+  };
+
+  const handleUndeleteTask = async (taskId: string) => {
+    setUndeletingTaskId(taskId);
+    await dispatch(undeleteTask(taskId));
+    setUndeletingTaskId(null);
   };
 
   const handleToggleComplete = async (taskId: string, completed: boolean) => {
@@ -113,7 +200,8 @@ export default function HomePage({}: HomePageProps) {
     dispatch(clearError());
   };
 
-  const isFiltered = searchTerm.length > 0 || filterPriority !== "all";
+  const isFiltered =
+    searchTerm.length > 0 || filterPriority !== "all" || filterStatus !== "all";
 
   return (
     <Layout title="Task Management - Home">
@@ -125,7 +213,7 @@ export default function HomePage({}: HomePageProps) {
           mb={4}
         >
           <Typography variant="h4" component="h1" color="primary">
-            Task Management
+            Tasks
           </Typography>
           <Box>
             <Button
@@ -140,21 +228,22 @@ export default function HomePage({}: HomePageProps) {
         </Box>
 
         <TaskFilters
-          totalTasks={tasks.length}
+          totalTasks={activeTasks}
           completedTasks={completedTasks}
+          deletedTasks={deletedTasks}
         />
 
         {(!isHydrated || (loading && tasks.length === 0)) && (
           <LoadingSpinner message="Loading tasks..." />
         )}
 
-        {isHydrated && !loading && filteredTasks.length === 0 && (
+        {isHydrated && !loading && filteredAndSortedTasks.length === 0 && (
           <EmptyState onCreateTask={handleCreateTask} isFiltered={isFiltered} />
         )}
 
         {isHydrated &&
           (!loading || tasks.length > 0) &&
-          filteredTasks.length > 0 && (
+          filteredAndSortedTasks.length > 0 && (
             <Box
               sx={{
                 display: "grid",
@@ -166,15 +255,20 @@ export default function HomePage({}: HomePageProps) {
                 gap: 3,
               }}
             >
-              {filteredTasks.map((task) => (
+              {filteredAndSortedTasks.map((task) => (
                 <TaskCard
                   key={task.id}
                   task={task}
                   onEdit={handleEditTask}
                   onDelete={handleDeleteTask}
+                  onHardDelete={handleHardDeleteTask}
+                  onUndelete={handleUndeleteTask}
                   onToggleComplete={handleToggleComplete}
                   loading={
-                    updatingTaskId === task.id || deletingTaskId === task.id
+                    updatingTaskId === task.id ||
+                    deletingTaskId === task.id ||
+                    hardDeletingTaskId === task.id ||
+                    undeletingTaskId === task.id
                   }
                 />
               ))}
@@ -204,10 +298,20 @@ export default function HomePage({}: HomePageProps) {
         <ConfirmDialog
           open={deleteConfirmOpen}
           title="Delete Task"
-          message="Are you sure you want to delete this task? This action cannot be undone."
+          message="Are you sure you want to delete this task? This will mark it as deleted."
           onConfirm={confirmDeleteTask}
           onCancel={() => setDeleteConfirmOpen(false)}
           confirmText="Delete"
+          confirmColor="error"
+        />
+
+        <ConfirmDialog
+          open={hardDeleteConfirmOpen}
+          title="Permanently Delete Task"
+          message="Are you sure you want to permanently delete this task? This action cannot be undone and the task will be removed forever."
+          onConfirm={confirmHardDeleteTask}
+          onCancel={() => setHardDeleteConfirmOpen(false)}
+          confirmText="Delete Forever"
           confirmColor="error"
         />
 
