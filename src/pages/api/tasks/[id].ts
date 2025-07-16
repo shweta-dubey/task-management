@@ -19,7 +19,6 @@ export default async function handler(
     try {
       const updates: UpdateTaskData = req.body;
 
-      // Add small delay to simulate network latency
       await new Promise((resolve) => setTimeout(resolve, 500));
       const tasks = loadTasksFromStorage();
       const taskIndex = tasks.findIndex((task) => task.id === id);
@@ -28,33 +27,30 @@ export default async function handler(
         return res.status(404).json({ error: "Task not found" });
       }
 
-      const updatedTask: Task = {
+      tasks[taskIndex] = {
         ...tasks[taskIndex],
         ...updates,
         updatedAt: new Date().toISOString(),
       };
 
-      tasks[taskIndex] = updatedTask;
       saveTasksToStorage(tasks);
-      return res.status(200).json(updatedTask);
+      return res.status(200).json(tasks[taskIndex]);
     } catch (error) {
       console.error("Error updating task:", error);
       return res.status(500).json({ error: "Failed to update task" });
     }
   } else if (req.method === "DELETE") {
     try {
-      // Add small delay to simulate network latency
       await new Promise((resolve) => setTimeout(resolve, 500));
       const tasks = loadTasksFromStorage();
-      const taskIndex = tasks.findIndex((task) => task.id === id);
+      const filteredTasks = tasks.filter((task) => task.id !== id);
 
-      if (taskIndex === -1) {
+      if (filteredTasks.length === tasks.length) {
         return res.status(404).json({ error: "Task not found" });
       }
 
-      tasks.splice(taskIndex, 1);
-      saveTasksToStorage(tasks);
-      return res.status(200).json({ message: "Task deleted successfully" });
+      saveTasksToStorage(filteredTasks);
+      return res.status(204).end();
     } catch (error) {
       console.error("Error deleting task:", error);
       return res.status(500).json({ error: "Failed to delete task" });

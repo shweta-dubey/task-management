@@ -2,7 +2,6 @@ import { configureStore } from "@reduxjs/toolkit";
 import taskReducer from "./taskSlice";
 import { TasksState } from "../types/task";
 
-// Load state from localStorage with proper typing
 export const loadState = (): { tasks: TasksState } | undefined => {
   try {
     if (typeof window === "undefined") return undefined;
@@ -10,7 +9,6 @@ export const loadState = (): { tasks: TasksState } | undefined => {
     if (serializedState === null) return undefined;
     const parsedState = JSON.parse(serializedState);
 
-    // Ensure the state structure matches what we expect
     if (parsedState && parsedState.tasks) {
       return {
         tasks: {
@@ -33,8 +31,6 @@ export const store = configureStore({
   reducer: {
     tasks: taskReducer,
   },
-  // Remove preloadedState to prevent hydration mismatch
-  // preloadedState: loadState(),
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
@@ -46,7 +42,6 @@ export const store = configureStore({
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 
-// Save state to localStorage
 export const saveState = (state: RootState) => {
   try {
     if (typeof window === "undefined") return;
@@ -55,7 +50,6 @@ export const saveState = (state: RootState) => {
         tasks: state.tasks.tasks,
         searchTerm: state.tasks.searchTerm,
         filterPriority: state.tasks.filterPriority,
-        // Don't persist loading and error states
       },
     });
     localStorage.setItem("reduxState", serializedState);
@@ -64,7 +58,6 @@ export const saveState = (state: RootState) => {
   }
 };
 
-// Subscribe to store updates and save to localStorage
 store.subscribe(() => {
   saveState(store.getState());
 });

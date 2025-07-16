@@ -51,14 +51,6 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
     );
   };
 
-  const handleStatusFilterChange = (event: { target: { value: string } }) => {
-    dispatch(
-      setFilterStatus(
-        event.target.value as "all" | "completed" | "pending" | "deleted"
-      )
-    );
-  };
-
   const handleSortChange = (event: { target: { value: string } }) => {
     dispatch(
       setSortBy(

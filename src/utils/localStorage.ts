@@ -7,7 +7,6 @@ const FILE_PATH = path.join(process.cwd(), "tasks.json");
 
 export const loadTasksFromStorage = (): Task[] => {
   if (typeof window === "undefined") {
-    // Server-side: use file system
     try {
       if (fs.existsSync(FILE_PATH)) {
         const fileContent = fs.readFileSync(FILE_PATH, "utf-8");
@@ -19,7 +18,6 @@ export const loadTasksFromStorage = (): Task[] => {
       return [];
     }
   } else {
-    // Client-side: use localStorage
     try {
       const serializedTasks = localStorage.getItem(STORAGE_KEY);
       if (serializedTasks === null) return [];
@@ -33,14 +31,12 @@ export const loadTasksFromStorage = (): Task[] => {
 
 export const saveTasksToStorage = (tasks: Task[]): void => {
   if (typeof window === "undefined") {
-    // Server-side: use file system
     try {
       fs.writeFileSync(FILE_PATH, JSON.stringify(tasks, null, 2));
     } catch (error) {
       console.error("Error saving tasks to file:", error);
     }
   } else {
-    // Client-side: use localStorage
     try {
       const serializedTasks = JSON.stringify(tasks);
       localStorage.setItem(STORAGE_KEY, serializedTasks);

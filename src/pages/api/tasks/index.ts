@@ -12,7 +12,6 @@ export default async function handler(
 ) {
   if (req.method === "GET") {
     try {
-      // Add small delay to simulate network latency
       await new Promise((resolve) => setTimeout(resolve, 500));
       const tasks = loadTasksFromStorage();
       return res.status(200).json(tasks);
@@ -45,7 +44,6 @@ export default async function handler(
         updatedAt: new Date().toISOString(),
       };
 
-      // Add small delay to simulate network latency
       await new Promise((resolve) => setTimeout(resolve, 500));
       const tasks = loadTasksFromStorage();
       tasks.push(newTask);

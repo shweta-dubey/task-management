@@ -9,6 +9,7 @@ import {
   Checkbox,
   Box,
   Tooltip,
+  CircularProgress,
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -16,10 +17,9 @@ import {
   Schedule as ScheduleIcon,
   RestoreFromTrash as RestoreIcon,
   DeleteForever as DeleteForeverIcon,
+  CheckCircle as CheckCircleIcon,
 } from "@mui/icons-material";
 import { Task } from "../types/task";
-import CircularProgress from "@mui/material/CircularProgress";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
 interface TaskCardProps {
   task: Task;

@@ -123,7 +123,6 @@ const TaskForm: React.FC<TaskFormProps> = ({ open, onClose, task, mode }) => {
         };
         await dispatch(createTask(createData)).unwrap();
       } else if (mode === "edit" && task) {
-        // Only update if something changed
         const hasChanged =
           data.name !== task.name ||
           data.description !== task.description ||

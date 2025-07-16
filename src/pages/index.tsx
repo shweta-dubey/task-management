@@ -26,7 +26,7 @@ interface HomePageProps {
   initialTasks: Task[];
 }
 
-export default function HomePage({}: HomePageProps) {
+export default function HomePage({ initialTasks }: HomePageProps) {
   const dispatch = useDispatch<AppDispatch>();
   const {
     tasks,
@@ -58,9 +58,11 @@ export default function HomePage({}: HomePageProps) {
     const persistedState = loadState();
     if (persistedState) {
       dispatch(hydrateState(persistedState.tasks.tasks));
+    } else if (initialTasks.length > 0) {
+      dispatch(hydrateState(initialTasks));
     }
     setIsHydrated(true);
-  }, [dispatch]);
+  }, [dispatch, initialTasks]);
 
   useEffect(() => {
     if (isHydrated && tasks.length === 0) {
@@ -102,7 +104,6 @@ export default function HomePage({}: HomePageProps) {
       return matchesSearch && matchesPriority && matchesStatus;
     });
 
-    // Sort tasks
     filtered.sort((a, b) => {
       switch (sortBy) {
         case "priority-high-low":
@@ -120,7 +121,6 @@ export default function HomePage({}: HomePageProps) {
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
           );
         default:
-          // Default: priority high to low
           const defaultOrder = { high: 3, medium: 2, low: 1 };
           return defaultOrder[b.priority] - defaultOrder[a.priority];
       }
@@ -335,9 +335,21 @@ export default function HomePage({}: HomePageProps) {
 }
 
 export const getServerSideProps: GetServerSideProps = async () => {
-  return {
-    props: {
-      initialTasks: [],
-    },
-  };
+  const { loadTasksFromStorage } = await import("../utils/localStorage");
+
+  try {
+    const tasks = loadTasksFromStorage();
+    return {
+      props: {
+        initialTasks: tasks,
+      },
+    };
+  } catch (error) {
+    console.error("Error loading tasks on server:", error);
+    return {
+      props: {
+        initialTasks: [],
+      },
+    };
+  }
 };
