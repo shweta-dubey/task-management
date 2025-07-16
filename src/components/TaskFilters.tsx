@@ -29,12 +29,14 @@ interface TaskFiltersProps {
   totalTasks: number;
   completedTasks: number;
   deletedTasks: number;
+  pendingTasks: number; // Add pendingTasks prop
 }
 
 const TaskFilters: React.FC<TaskFiltersProps> = ({
   totalTasks,
   completedTasks,
   deletedTasks,
+  pendingTasks,
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { searchTerm, filterPriority, filterStatus, sortBy } = useSelector(
@@ -68,8 +70,6 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
   ) => {
     dispatch(setFilterStatus(status));
   };
-
-  const pendingTasks = totalTasks - completedTasks;
 
   return (
     <Paper elevation={1} sx={{ p: 3, mb: 3 }}>

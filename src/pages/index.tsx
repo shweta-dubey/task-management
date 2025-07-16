@@ -128,9 +128,39 @@ export default function HomePage({ initialTasks }: HomePageProps) {
     return tasks.filter((task) => task.deleted).length;
   }, [tasks]);
 
-  const activeTasks = useMemo(() => {
-    return tasks.filter((task) => !task.deleted).length;
+  const pendingTasks = useMemo(() => {
+    return tasks.filter((task) => !task.completed && !task.deleted).length;
   }, [tasks]);
+
+  // Calculate total of ALL tasks (active + completed + deleted)
+  const totalTasks = useMemo(() => {
+    return tasks.length;
+  }, [tasks]);
+
+  // Helper function to sort tasks locally
+  const sortTasks = (tasksToSort: Task[], sortBy: string): Task[] => {
+    return [...tasksToSort].sort((a, b) => {
+      switch (sortBy) {
+        case "priority-high-low":
+          const priorityOrder = { high: 3, medium: 2, low: 1 };
+          return priorityOrder[b.priority] - priorityOrder[a.priority];
+        case "priority-low-high":
+          const priorityOrderLow = { high: 3, medium: 2, low: 1 };
+          return priorityOrderLow[a.priority] - priorityOrderLow[b.priority];
+        case "newest-first":
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        case "oldest-first":
+          return (
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+        default:
+          const defaultOrder = { high: 3, medium: 2, low: 1 };
+          return defaultOrder[b.priority] - defaultOrder[a.priority];
+      }
+    });
+  };
 
   const handleCreateTask = () => {
     setFormMode("create");
@@ -212,9 +242,9 @@ export default function HomePage({ initialTasks }: HomePageProps) {
 
   const displayTasks = !isMounted
     ? initialTasks
-    : isFiltered && filteredTasks.length >= 0
+    : isFiltered
     ? filteredTasks
-    : tasks;
+    : sortTasks(tasks, sortBy);
 
   return (
     <Layout title="Task Management - Home">
@@ -241,9 +271,10 @@ export default function HomePage({ initialTasks }: HomePageProps) {
         </Box>
 
         <TaskFilters
-          totalTasks={activeTasks}
+          totalTasks={totalTasks}
           completedTasks={completedTasks}
           deletedTasks={deletedTasks}
+          pendingTasks={pendingTasks}
         />
 
         {(!isMounted || (loading && tasks.length === 0)) && (
