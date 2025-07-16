@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { Task, UpdateTaskData } from "../../../types/task";
+import { UpdateTaskData } from "../../../types/task";
 import {
   loadTasksFromStorage,
   saveTasksToStorage,
