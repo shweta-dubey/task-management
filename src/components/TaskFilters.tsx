@@ -90,7 +90,7 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
         <Typography variant="h6" component="h2">
           Status
         </Typography>
-        <Box display="flex" gap={1}>
+        <Box display="flex" gap={1} flexWrap="wrap">
           <Chip
             label={`Total: ${totalTasks}`}
             color={filterStatus === "all" ? "primary" : "default"}
