@@ -15,6 +15,8 @@ export const loadState = (): { tasks: TasksState } | undefined => {
           tasks: parsedState.tasks.tasks || [],
           searchTerm: parsedState.tasks.searchTerm || "",
           filterPriority: parsedState.tasks.filterPriority || "all",
+          filterStatus: parsedState.tasks.filterStatus || "all",
+          sortBy: parsedState.tasks.sortBy || "priority-high-low",
           loading: false,
           error: null,
         },
@@ -50,6 +52,8 @@ export const saveState = (state: RootState) => {
         tasks: state.tasks.tasks,
         searchTerm: state.tasks.searchTerm,
         filterPriority: state.tasks.filterPriority,
+        filterStatus: state.tasks.filterStatus,
+        sortBy: state.tasks.sortBy,
       },
     });
     localStorage.setItem("reduxState", serializedState);

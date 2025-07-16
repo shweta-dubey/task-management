@@ -307,6 +307,25 @@ const TaskCard: React.FC<TaskCardProps> = ({
             </Box>
           )}
 
+          {/* Add delete option for completed tasks */}
+          {task.completed && !task.deleted && (
+            <Box>
+              <Tooltip title="Delete task">
+                <span>
+                  <IconButton
+                    onClick={() => onDelete(task.id)}
+                    color="error"
+                    size="small"
+                    aria-label="Delete task"
+                    disabled={loading}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Box>
+          )}
+
           {task.deleted && onUndelete && (
             <Box display="flex" gap={1}>
               <Tooltip title="Restore task">
