@@ -2,7 +2,8 @@
 
 A modern, responsive task management application built with **Next.js**, **Redux Toolkit**, **Material-UI**, and **React Hook Form**. This application demonstrates best practices in React development, state management, and user interface design.
 
-## 🚀 Features
+## video link
+ - https://github.com/user-attachments/assets/54d70d1e-78f8-4092-9e00-ea644ee1c207
 
 ### Core Functionality
 
